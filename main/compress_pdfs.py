@@ -168,7 +168,7 @@ def compress_pdf_directory(directory, tracking_file, quality='ebook', workers=No
                 compressed_count += 1
                 savings = result["savings"]
                 total_savings += savings
-                print(f"Compressed: {file_path} - Saved {savings/1024:.1f}KB ({result['percent']:.1f}%)")
+                # print(f"Compressed: {file_path} - Saved {savings/1024:.1f}KB ({result['percent']:.1f}%)")
             elif result == "Unchanged":
                 unchanged_count += 1
             else:

@@ -17,17 +17,16 @@ measure_time() {
     echo "Time taken: ${elapsed_time} seconds"
 }
 
-echo "=== Starting PDF fetch process ==="
 # grab bill list from legislative-interface
-python3 main/fetch_bill_list.py $sessionId
+measure_time python3 main/fetch_bill_list.py $sessionId
 # grab fiscal notes
-python3 main/fetch_fiscal_notes.py "$sessionId" "$legislatureOrdinal" "$sessionOrdinal"
+measure_time python3 main/get_fiscal_review_notes.py "$sessionId" "$legislatureOrdinal" "$sessionOrdinal"
 # grab legal nots
-python3 main/fetch_legal_notes.py "$sessionId" "$legislatureOrdinal" "$sessionOrdinal"
+measure_time python3 main/get_legal_review_notes.py "$sessionId" "$legislatureOrdinal" "$sessionOrdinal"
 # grab amendments
-python3 main/fetch_amendments.py "$sessionId" "$legislatureOrdinal" "$sessionOrdinal"
+measure_time python3 main/get_amendments.py "$sessionId" "$legislatureOrdinal" "$sessionOrdinal"
 # compress pdfs
-python3 main/compress_pdfs.py $sessionId
+measure_time python3 main/compress_pdfs.py $sessionId
 # generate links? — figure out how we integrate them with the website
 
 # Run the fetch script
