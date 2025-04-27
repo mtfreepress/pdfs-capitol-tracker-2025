@@ -28,7 +28,7 @@ def download_file(url, dest_folder, file_name):
         file_path = dest_folder / file_name
         with open(file_path, "wb") as f:
             f.write(response.content)
-        print(f"Downloaded: {file_path}")
+        # print(f"Downloaded: {file_path}")
         return True
     else:
         print(f"Failed to download: {url}")
@@ -138,7 +138,7 @@ def main():
     session_ordinal = args.sessionOrdinal
 
     # Use the new bills list file location
-    list_bills_file = DATA_DIR / "bills-list" / f"list-bills-{session_id}.json"
+    list_bills_file = BASE_DIR.parent / "working" / "bills-list" / f"list-bills-{session_id}.json"
     
     if not list_bills_file.exists():
         print(f"Error: Bills list file not found at {list_bills_file}")

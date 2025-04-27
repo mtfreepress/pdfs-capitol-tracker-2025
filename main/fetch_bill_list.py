@@ -6,7 +6,7 @@ from pathlib import Path
 
 def fetch_bills_list(session_id):
     """
-    Fetch bills list JSON for a given session ID and save it to the data directory.
+    Fetch bills list JSON for a given session ID and save it to the working directory.
     
     Args:
         session_id (str): The session ID (e.g., '2025')
@@ -16,14 +16,14 @@ def fetch_bills_list(session_id):
     """
     # Use absolute paths relative to this script's location
     script_dir = Path(__file__).resolve().parent
-    data_dir = script_dir.parent / "data" / "bills-list"
+    working_dir = script_dir.parent / "working" / "bills-list"
     
     # Create the directory if it doesn't exist
-    data_dir.mkdir(parents=True, exist_ok=True)
+    working_dir.mkdir(parents=True, exist_ok=True)
     
     # Define the URL and output file path
     url = f"https://raw.githubusercontent.com/mtfreepress/legislative-interface/refs/heads/main/list-bills-{session_id}.json"
-    output_path = data_dir / f"list-bills-{session_id}.json"
+    output_path = working_dir / f"list-bills-{session_id}.json"
     
     print(f"Fetching bills list from: {url}")
     

@@ -210,10 +210,14 @@ def main():
     session_id = args.sessionId
     script_dir = Path(__file__).parent
     data_dir = script_dir.parent / "data"
+    working_dir = script_dir.parent / "working"
+    
+    # Create working directory if it doesn't exist
+    working_dir.mkdir(exist_ok=True)
     
     tracking_file = args.tracking_file
     if tracking_file is None:
-        tracking_file = data_dir / f"compression-tracking-{session_id}.json"
+        tracking_file = working_dir / f"compression-tracking-{session_id}.json"
     
     # Directories to process
     directories = [
