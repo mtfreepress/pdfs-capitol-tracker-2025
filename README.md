@@ -8,11 +8,11 @@ Designed to run via GHA at regular intervals to ensure the [MTFP](https://montan
 2) Allow for incremental updates of PDFs so we aren't uploading 1GB+ to AWS every 20 minutes
 3) Reduce the steps taken from: 
 ```
-grab pdfs & process->move them to capitol tracker repo->build->deploy to aws
+[grab pdfs & process]->[move to capitol tracker repo]->[next build]->[deploy all PDFs to aws every time]
 ```
 down to 
 ```
-grab pdfs & pocess->deploy to aws
+[grab pdfs & process]->[deploy changed PDFs to aws]
 ```
 which will speed up deployment from a best case scenario of around 25 minutes (and can be up to 45 minutes after a new PDF is uploaded before it shows up) to a worst case of less than 5. 
 
