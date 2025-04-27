@@ -128,8 +128,53 @@ def find_pdf_files(directory):
         pdf_files.append(path)
     return pdf_files
 
+def find_modified_pdfs(directory, tracking_data, max_age_hours=24):
+    """Find only PDF files that are new or modified since last check"""
+    pdf_files = []
+    current_time = datetime.now()
+    
+    # Walk through directory structure
+    for path in Path(directory).rglob('*.pdf'):
+        str_path = str(path)
+        
+        # Check if file is in tracking data
+        if str_path in tracking_data:
+            file_info = tracking_data[str_path]
+            
+            # If we have a last checked timestamp, use that for comparison
+            if "last_checked" in file_info:
+                last_checked_str = file_info["last_checked"]
+                try:
+                    last_checked = datetime.fromisoformat(last_checked_str)
+                    # Skip files that were checked recently
+                    age_hours = (current_time - last_checked).total_seconds() / 3600
+                    if age_hours < max_age_hours:
+                        continue
+                except (ValueError, TypeError):
+                    # If timestamp parsing fails, check the file
+                    pass
+                    
+            # If we have a hash, we can use that to see if the file changed
+            if "hash" in file_info:
+                # Skip hash calculation if we have recent stats
+                file_stat = path.stat()
+                size = file_stat.st_size
+                mtime = file_stat.st_mtime
+                
+                # If size and mtime match what we have stored, assume file hasn't changed
+                if ("size" in file_info and "mtime" in file_info and 
+                    file_info["size"] == size and file_info["mtime"] == mtime):
+                    # Update the last_checked timestamp and continue
+                    file_info["last_checked"] = current_time.isoformat()
+                    continue
+        
+        # If we got here, the file needs to be checked
+        pdf_files.append(path)
+    
+    return pdf_files
+
 def compress_pdf_directory(directory, tracking_file, quality='ebook', workers=None, 
-                          dryrun=False, min_savings_percent=5):
+                          dryrun=False, min_savings_percent=5, max_age_hours=24):
     """Compress all PDF files in the directory using multiple processes"""
     # default workers to CPU count
     if workers is None:
@@ -138,17 +183,21 @@ def compress_pdf_directory(directory, tracking_file, quality='ebook', workers=No
     # load tracking data
     tracking_data = load_tracking_data(tracking_file)
     
-    all_pdf_files = find_pdf_files(directory)
+    # Find only PDFs that need checking
+    pdf_files = find_modified_pdfs(directory, tracking_data, max_age_hours)
     
-    if not all_pdf_files:
-        print(f"No PDF files found in {directory}")
-        return
+    # Get total file count for reporting
+    total_files = sum(1 for _ in Path(directory).rglob('*.pdf'))
     
-    print(f"Found {len(all_pdf_files)} PDF files in {directory}")
+    if not pdf_files:
+        print(f"No PDF files need checking in {directory} out of {total_files} total files")
+        return 0, total_files - 0, 0, 0
+    
+    print(f"Checking {len(pdf_files)} of {total_files} PDF files in {directory}")
     
     # Prepare arguments for the worker function
     work_args = [(pdf_file, tracking_data, quality, dryrun, min_savings_percent) 
-                for pdf_file in all_pdf_files]
+                for pdf_file in pdf_files]
     
     # Track results
     compressed_count = 0
@@ -163,6 +212,7 @@ def compress_pdf_directory(directory, tracking_file, quality='ebook', workers=No
         # Process results as they complete
         for future in as_completed(futures):
             success, file_path, result = future.result()
+            str_path = str(file_path)
             
             if success:
                 compressed_count += 1
@@ -171,27 +221,66 @@ def compress_pdf_directory(directory, tracking_file, quality='ebook', workers=No
                 # print(f"Compressed: {file_path} - Saved {savings/1024:.1f}KB ({result['percent']:.1f}%)")
             elif result == "Unchanged":
                 unchanged_count += 1
+                
+                # Update file stats for future quick checks
+                if not dryrun and str_path in tracking_data:
+                    file_stat = Path(file_path).stat()
+                    tracking_data[str_path]["size"] = file_stat.st_size
+                    tracking_data[str_path]["mtime"] = file_stat.st_mtime
+                    tracking_data[str_path]["last_checked"] = datetime.now().isoformat()
             else:
                 error_count += 1
                 if result != "Minimal savings" and result != "Dry Run":
                     print(f"Failed: {file_path} - {result}")
+                
+                # Add to tracking data if not already present
+                if not dryrun and str_path not in tracking_data:
+                    try:
+                        file_stat = Path(file_path).stat()
+                        tracking_data[str_path] = {
+                            "hash": get_file_hash(file_path),
+                            "skipped": True,
+                            "reason": str(result),
+                            "size": file_stat.st_size,
+                            "mtime": file_stat.st_mtime,
+                            "last_checked": datetime.now().isoformat()
+                        }
+                    except Exception as e:
+                        print(f"Error adding failed file to tracking data: {e}")
     
     # only save tracking data if not in dry run mode
     if not dryrun:
+        # Print tracking data statistics before saving
+        print(f"Saving tracking data with {len(tracking_data)} entries")
         save_tracking_data(tracking_data, tracking_file)
+        
+        # Verify the save worked
+        try:
+            if Path(tracking_file).exists():
+                with open(tracking_file, 'r') as f:
+                    check_data = json.load(f)
+                print(f"Verified: Tracking file contains {len(check_data)} entries")
+            else:
+                print("WARNING: Tracking file was not created!")
+        except Exception as e:
+            print(f"Error verifying tracking file: {e}")
     
     # print summary
     print(f"\nCompression Summary for {directory}:")
-    print(f"- Total PDFs found: {len(all_pdf_files)}")
+    print(f"- Total PDFs found: {total_files}")
+    print(f"- PDFs checked: {len(pdf_files)}")
     print(f"- Compressed: {compressed_count} files")
     print(f"- Unchanged: {unchanged_count} files")
     print(f"- Skipped/Error: {error_count} files")
     print(f"- Total savings: {total_savings/1024/1024:.2f} MB")
     
-    return compressed_count, unchanged_count, error_count, total_savings
+    # Include unchecked files in unchanged count for return value
+    return compressed_count, unchanged_count + (total_files - len(pdf_files)), error_count, total_savings
 
 def main():
     parser = argparse.ArgumentParser(description="Compress PDF files for Capitol Tracker")
+    parser.add_argument("--max-age", type=int, default=24,
+                     help="Maximum age in hours before re-checking a file (default: 24)")
     parser.add_argument("sessionId", help="Legislative session ID (e.g. 2025)")
     parser.add_argument("--tracking-file", default=None, 
                      help="JSON file to track compressed files (default: data/compression-tracking-{sessionId}.json)")
@@ -247,7 +336,8 @@ def main():
             quality=args.quality, 
             workers=args.workers, 
             dryrun=args.dry_run, 
-            min_savings_percent=args.min_savings
+            min_savings_percent=args.min_savings,
+            max_age_hours=args.max_age
         )
         
         total_compressed += compressed
