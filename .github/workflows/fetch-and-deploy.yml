@@ -1,0 +1,85 @@
+name: Capitol Tracker PDF Processing
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '*/20 12-23,0-5 * * *'  # Run every 20 minutes during work hours and early morning
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest 
+
+    steps:
+    # Checkout the repository
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Fetch all history for proper git operations
+
+    # Restore Python dependencies cache
+    - name: Restore Python dependencies cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-cache-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-cache-
+
+    # Set up Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    # Install dependencies from requirements.txt
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install Ghostscript for PDF compression
+        sudo apt-get update && sudo apt-get install -y ghostscript
+        pip install -r requirements.txt
+
+    
+
+    # Ensure the scripts are executable
+    - name: Make scripts executable
+      run: |
+        chmod +x ./fetch-and-compress.sh
+        chmod +x ./deploy.sh
+
+    # Execute the fetch and compress script
+    - name: Run fetch and compress script
+      run: ./fetch-and-compress.sh
+
+    # Configure AWS credentials
+    # - name: Configure AWS credentials
+    #   uses: aws-actions/configure-aws-credentials@v1
+    #   with:
+    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     aws-region: us-west-2
+    
+    # The deployment step is commented out for now
+    # - name: Deploy to AWS
+    #   run: ./deploy.sh
+
+    # Save Python dependencies cache
+    - name: Save Python dependencies cache
+      if: always()
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-cache-${{ hashFiles('requirements.txt') }}
+
+    # Commit and push changes
+    - name: Commit and push if changed
+      run: |
+        git config user.name "Automated"
+        git config user.email "actions@users.noreply.github.com"
+        git add -A
+        timestamp=$(date -u)
+        git commit -m "Latest PDFs: ${timestamp}" || exit 0
+        git push

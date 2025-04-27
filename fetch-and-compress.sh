@@ -27,5 +27,5 @@ measure_time python3 main/get_legal_review_notes.py "$sessionId" "$legislatureOr
 measure_time python3 main/get_amendments.py "$sessionId" "$legislatureOrdinal" "$sessionOrdinal"
 # compress pdfs
 measure_time python3 main/compress_pdfs.py $sessionId
-# generate links? — figure out how we integrate them with the website
+# generate links for a pseudo-API
 measure_time python3 main/generate_document_index.py $sessionId
