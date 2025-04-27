@@ -13,7 +13,8 @@ echo "Installing dependencies..."
 pip install -r requirements.txt
 
 # make scripts executable
-chmod +x ./fetch_and_deploy.sh
+chmod +x ./fetch_and_compress.sh
+chmod +x ./deploy.sh
 
 echo "Setup complete! To activate the virtual environment, run:"
 echo "source venv/bin/activate"
