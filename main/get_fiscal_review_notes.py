@@ -161,7 +161,7 @@ def main():
     #     },
     # ]
 
-    download_dir = DATA_DIR / f"fiscal-note-pdfs-{session_id}"
+    download_dir = DATA_DIR / f"fiscal-notes"
     print(f"Download directory: {download_dir}")
 
     with ThreadPoolExecutor(max_workers=10) as executor:

@@ -145,7 +145,7 @@ def main():
         print("No bills found in the bills list file.")
         return 0
 
-    download_dir = DATA_DIR / f"legal-note-pdfs-{session_id}"
+    download_dir = DATA_DIR / f"legal-notes"
     print(f"Download directory: {download_dir}")
 
     with ThreadPoolExecutor(max_workers=10) as executor:
